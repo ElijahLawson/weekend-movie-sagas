@@ -8,25 +8,38 @@ import { Provider } from 'react-redux';
 import logger from 'redux-logger';
 // Import saga middleware
 import createSagaMiddleware from 'redux-saga';
-import { takeEvery, put } from 'redux-saga/effects';
+import { takeEvery, put, take } from 'redux-saga/effects';
 import axios from 'axios';
+import { BrowserRouter } from 'react-router-dom';
 
 // Create the rootSaga generator function
 function* rootSaga() {
     yield takeEvery('FETCH_MOVIES', fetchAllMovies);
+    yield takeEvery('FETCH_CURRENT_MOVIE', fetchMovie);
 }
 
 function* fetchAllMovies() {
     // get all movies from the DB
     try {
-        const movies = yield axios.get('/api/movie');
+        const movies = yield axios.get('/api/movie/');
         console.log('get all:', movies.data);
         yield put({ type: 'SET_MOVIES', payload: movies.data });
 
     } catch {
         console.log('get all error');
     }
-        
+}
+
+function* fetchMovie(action) {
+    try {
+        const movie = yield axios({
+            type: 'GET',
+            url: `/api/movie/details/${action.payload}`,
+        })
+        yield put({ type: 'SET_CURRENT_MOVIE', payload: movie.data})
+    } catch {
+        console.log('get current movie error')
+    }
 }
 
 // Create sagaMiddleware
@@ -52,10 +65,20 @@ const genres = (state = [], action) => {
     }
 }
 
+const currentMovie = (state={}, action) => {
+    switch (action.type) {
+        case 'SET_CURRENT_MOVIE':
+            return action.payload;
+        default:
+            return state;
+    }
+}
+
 // Create one store that all components can use
 const storeInstance = createStore(
     combineReducers({
         movies,
+        currentMovie,
         genres,
     }),
     // Add sagaMiddleware to our store
@@ -69,7 +92,9 @@ const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
     <React.StrictMode>
         <Provider store={storeInstance}>
-            <App />
+            <BrowserRouter>
+                <App />
+            </BrowserRouter>
         </Provider>
     </React.StrictMode>
 );
